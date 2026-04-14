@@ -3,6 +3,8 @@ import { ShoppingCart, AlertTriangle, Package, Download } from "lucide-react";
 import { inventario, pedidoSugerido } from "@/lib/mock-data";
 import { StatCard } from "./StatCard";
 import { Button } from "./ui/button";
+import { DocumentUploader } from "./DocumentUploader";
+import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
 
 export function ComprasView() {
