@@ -8,8 +8,10 @@ import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
 
 export function ComprasView() {
+  const { user } = useAuth();
   const criticos = inventario.filter((i) => i.estado === "critico").length;
   const [descargando, setDescargando] = useState(false);
+  const canUpload = user && ["gerente", "compras"].includes(user.role);
 
   const handleDescargar = () => {
     setDescargando(true);
