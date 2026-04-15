@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { useAuth, type UserRole } from "@/lib/auth-context";
+import { useLang } from "@/lib/lang-context";
 import {
   BarChart3,
   ChefHat,
@@ -9,29 +10,31 @@ import {
   Recycle,
 } from "lucide-react";
 
-const NAV_ITEMS: Record<UserRole, { to: string; label: string; icon: React.ReactNode }[]> = {
-  gerente: [
-    { to: "/dashboard", label: "Dashboard", icon: <BarChart3 size={20} /> },
-    { to: "/produccion", label: "Producción", icon: <ChefHat size={20} /> },
-    { to: "/compras", label: "Compras", icon: <ShoppingCart size={20} /> },
-    { to: "/sostenibilidad", label: "Sostenibilidad", icon: <Leaf size={20} /> },
-  ],
-  cocina: [
-    { to: "/produccion", label: "Producción", icon: <ChefHat size={20} /> },
-  ],
-  compras: [
-    { to: "/compras", label: "Compras", icon: <ShoppingCart size={20} /> },
-  ],
-  sostenibilidad: [
-    { to: "/dashboard", label: "Dashboard", icon: <BarChart3 size={20} /> },
-    { to: "/sostenibilidad", label: "Sostenibilidad", icon: <Leaf size={20} /> },
-  ],
-};
-
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const { t, lang, setLang } = useLang();
+
   if (!user) return null;
+
+  const NAV_ITEMS: Record<UserRole, { to: string; label: string; icon: React.ReactNode }[]> = {
+    gerente: [
+      { to: "/dashboard", label: t.dashboard, icon: <BarChart3 size={20} /> },
+      { to: "/produccion", label: t.produccion, icon: <ChefHat size={20} /> },
+      { to: "/compras", label: t.compras, icon: <ShoppingCart size={20} /> },
+      { to: "/sostenibilidad", label: t.sostenibilidad, icon: <Leaf size={20} /> },
+    ],
+    cocina: [
+      { to: "/produccion", label: t.produccion, icon: <ChefHat size={20} /> },
+    ],
+    compras: [
+      { to: "/compras", label: t.compras, icon: <ShoppingCart size={20} /> },
+    ],
+    sostenibilidad: [
+      { to: "/dashboard", label: t.dashboard, icon: <BarChart3 size={20} /> },
+      { to: "/sostenibilidad", label: t.sostenibilidad, icon: <Leaf size={20} /> },
+    ],
+  };
 
   const items = NAV_ITEMS[user.role];
 
@@ -45,6 +48,12 @@ export function AppSidebar() {
           <p className="text-sm font-bold tracking-tight">FullCycle</p>
           <p className="text-xs text-sidebar-foreground/60">Solutions</p>
         </div>
+        <button
+          onClick={() => setLang(lang === "es" ? "en" : "es")}
+          className="ml-auto rounded-md border border-sidebar-border px-2 py-1 text-xs font-semibold text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+        >
+          {lang === "es" ? "EN" : "ES"}
+        </button>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
@@ -77,7 +86,7 @@ export function AppSidebar() {
           className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <LogOut size={18} />
-          Cerrar sesión
+          {t.cerrarSesion}
         </button>
       </div>
     </aside>

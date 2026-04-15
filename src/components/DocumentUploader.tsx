@@ -4,6 +4,7 @@ import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle, X, TrendingDown, T
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import Papa from "papaparse";
+import { useLang } from "@/lib/lang-context";
 
 interface ParsedRow {
   sku: string;
@@ -22,14 +23,14 @@ interface AnalysisResult {
   sugerencias: { sku: string; nombre: string; cantidadActual: number; cantidadPedir: number; unidad: string }[];
 }
 
-function analyzeData(rows: ParsedRow[]): AnalysisResult {
+function analyzeData(rows: ParsedRow[], productosBajoMinimo: string, masDe50: string): AnalysisResult {
   const criticos = rows.filter((r) => r.stock < r.minimo);
   const saludables = rows.filter((r) => r.stock >= r.minimo);
   const stockTotal = rows.reduce((sum, r) => sum + r.stock, 0);
 
   const alertas: string[] = [];
-  if (criticos.length > 0) alertas.push(`${criticos.length} producto(s) por debajo del stock mínimo`);
-  if (criticos.length > rows.length * 0.5) alertas.push("⚠️ Más del 50% del inventario está en estado crítico");
+  if (criticos.length > 0) alertas.push(`${criticos.length} ${productosBajoMinimo}`);
+  if (criticos.length > rows.length * 0.5) alertas.push(masDe50);
 
   const sugerencias = criticos.map((c) => ({
     sku: c.sku,
@@ -65,6 +66,7 @@ function normalizeHeaders(headers: string[]): Record<string, string> {
 }
 
 export function DocumentUploader() {
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -86,7 +88,7 @@ export function DocumentUploader() {
 
     const ext = f.name.split(".").pop()?.toLowerCase();
     if (!["csv", "txt"].includes(ext || "")) {
-      setError("Formato no soportado. Por favor sube un archivo CSV.");
+      setError(t.formatoNoSoportado);
       setParsing(false);
       return;
     }
@@ -97,7 +99,7 @@ export function DocumentUploader() {
       complete: (results) => {
         try {
           if (!results.data || results.data.length === 0) {
-            setError("El archivo está vacío o no tiene datos válidos.");
+            setError(t.archivoVacio);
             setParsing(false);
             return;
           }
@@ -107,7 +109,7 @@ export function DocumentUploader() {
 
           if (!headerMap[headers.find((h) => normalizeHeaders([h])[h] === "sku") || ""] &&
               !Object.values(headerMap).includes("sku")) {
-            setError("No se encontró la columna SKU. Asegúrate de que el archivo tenga columnas: SKU, Nombre, Stock, Mínimo, Unidad.");
+            setError(t.sinColumnasSKU);
             setParsing(false);
             return;
           }
@@ -132,24 +134,25 @@ export function DocumentUploader() {
           }
 
           if (rows.length === 0) {
-            setError("No se pudieron extraer datos válidos. Revisa las columnas del archivo.");
+            setError(t.sinDatosValidos);
             setParsing(false);
             return;
           }
 
-          setAnalysis(analyzeData(rows));
+          setAnalysis(analyzeData(rows, t.productosBajoMinimo, t.masDe50));
           setParsing(false);
         } catch {
-          setError("Error al procesar el archivo. Verifica el formato.");
+          setError(t.errorProcesar);
           setParsing(false);
         }
       },
       error: () => {
-        setError("Error al leer el archivo.");
+        setError(t.errorLeer);
         setParsing(false);
       },
     });
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -170,16 +173,14 @@ export function DocumentUploader() {
     <>
       <Button variant="outline" size="sm" onClick={() => { reset(); setOpen(true); }}>
         <Upload size={14} className="mr-1" />
-        Subir Documento
+        {t.subirDocumento}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Subir Documento de Inventario</DialogTitle>
-            <DialogDescription>
-              Sube un archivo CSV con columnas: SKU, Nombre, Stock, Mínimo, Unidad
-            </DialogDescription>
+            <DialogTitle>{t.subirDocTitle}</DialogTitle>
+            <DialogDescription>{t.subirDocDesc}</DialogDescription>
           </DialogHeader>
 
           {!analysis && (
@@ -192,15 +193,15 @@ export function DocumentUploader() {
               }`}
             >
               <FileSpreadsheet size={40} className="text-muted-foreground" />
-              <p className="text-sm font-medium">Arrastra un archivo CSV aquí</p>
-              <p className="text-xs text-muted-foreground">o haz clic para seleccionar</p>
+              <p className="text-sm font-medium">{t.arrastraCSV}</p>
+              <p className="text-xs text-muted-foreground">{t.haceClic}</p>
               <input
                 type="file"
                 accept=".csv,.txt"
                 onChange={handleFileInput}
                 className="absolute inset-0 cursor-pointer opacity-0"
               />
-              {parsing && <p className="text-xs text-primary animate-pulse">Analizando...</p>}
+              {parsing && <p className="text-xs text-primary animate-pulse">{t.analizando}</p>}
             </div>
           )}
 
@@ -222,38 +223,36 @@ export function DocumentUploader() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle size={14} className="text-success" />
-                <span>Archivo <strong>{file?.name}</strong> analizado correctamente</span>
+                <span><strong>{file?.name}</strong> {t.archivoAnalizado}</span>
                 <Button variant="ghost" size="sm" className="ml-auto h-6 px-2" onClick={reset}>
                   <X size={12} />
                 </Button>
               </div>
 
-              {/* Stats */}
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="flex items-center gap-3 rounded-lg border p-3">
                   <BarChart3 size={18} className="text-primary" />
                   <div>
                     <p className="text-lg font-bold">{analysis.totalProductos}</p>
-                    <p className="text-xs text-muted-foreground">Productos</p>
+                    <p className="text-xs text-muted-foreground">{t.productos}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 rounded-lg border p-3">
                   <TrendingDown size={18} className="text-destructive" />
                   <div>
                     <p className="text-lg font-bold">{analysis.criticos.length}</p>
-                    <p className="text-xs text-muted-foreground">Críticos</p>
+                    <p className="text-xs text-muted-foreground">{t.criticos}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 rounded-lg border p-3">
                   <TrendingUp size={18} className="text-success" />
                   <div>
                     <p className="text-lg font-bold">{analysis.saludables.length}</p>
-                    <p className="text-xs text-muted-foreground">Saludables</p>
+                    <p className="text-xs text-muted-foreground">{t.saludables}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Alertas */}
               {analysis.alertas.length > 0 && (
                 <div className="space-y-1.5">
                   {analysis.alertas.map((a, i) => (
@@ -265,14 +264,13 @@ export function DocumentUploader() {
                 </div>
               )}
 
-              {/* Sugerencias de pedido */}
               {analysis.sugerencias.length > 0 && (
                 <div className="rounded-xl border">
                   <div className="border-b px-4 py-2.5">
-                    <h4 className="text-sm font-semibold">Pedido Sugerido (Auto-generado)</h4>
+                    <h4 className="text-sm font-semibold">{t.pedidoAutoGenerado}</h4>
                   </div>
                   <div className="grid grid-cols-5 gap-2 border-b px-4 py-2 text-xs font-semibold text-muted-foreground">
-                    <span>SKU</span><span>Nombre</span><span>Actual</span><span>A pedir</span><span>Unidad</span>
+                    <span>{t.sku}</span><span>{t.nombre}</span><span>{t.actual}</span><span>{t.aPedir}</span><span>{t.unidad}</span>
                   </div>
                   {analysis.sugerencias.map((s) => (
                     <div key={s.sku} className="grid grid-cols-5 gap-2 border-b px-4 py-2 text-sm last:border-0">
@@ -286,14 +284,13 @@ export function DocumentUploader() {
                 </div>
               )}
 
-              {/* Tabla completa */}
               <details className="group">
                 <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
-                  Ver inventario completo ({analysis.totalProductos} items)
+                  {t.verInventario} ({analysis.totalProductos} {t.items})
                 </summary>
                 <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border">
                   <div className="grid grid-cols-5 gap-2 border-b px-4 py-2 text-xs font-semibold text-muted-foreground">
-                    <span>SKU</span><span>Nombre</span><span>Stock</span><span>Mínimo</span><span>Estado</span>
+                    <span>{t.sku}</span><span>{t.nombre}</span><span>{t.stock}</span><span>{t.minimo}</span><span>{t.estado}</span>
                   </div>
                   {[...analysis.criticos, ...analysis.saludables].map((r) => (
                     <div key={r.sku} className="grid grid-cols-5 gap-2 border-b px-4 py-1.5 text-xs last:border-0">
@@ -302,7 +299,7 @@ export function DocumentUploader() {
                       <span>{r.stock} {r.unidad}</span>
                       <span className="text-muted-foreground">{r.minimo} {r.unidad}</span>
                       <span className={r.stock < r.minimo ? "text-destructive font-medium" : "text-success"}>
-                        {r.stock < r.minimo ? "Crítico" : "OK"}
+                        {r.stock < r.minimo ? t.critico : "OK"}
                       </span>
                     </div>
                   ))}

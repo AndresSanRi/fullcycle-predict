@@ -5,9 +5,11 @@ import { Recycle, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLang } from "@/lib/lang-context";
 
 export function LoginForm() {
   const { login } = useAuth();
+  const { t, lang, setLang } = useLang();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -16,10 +18,10 @@ export function LoginForm() {
 
   const validate = () => {
     const e: typeof errors = {};
-    if (!email.trim()) e.email = "El correo es obligatorio";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Correo inválido";
-    if (!password) e.password = "La contraseña es obligatoria";
-    else if (password.length < 6) e.password = "Mínimo 6 caracteres";
+    if (!email.trim()) e.email = t.correoObligatorio;
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = t.correoInvalido;
+    if (!password) e.password = t.contrasenaObligatoria;
+    else if (password.length < 6) e.password = t.contrasenaMin;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -29,7 +31,12 @@ export function LoginForm() {
     setError("");
     if (!validate()) return;
     const result = login(email, password);
-    if (!result.success) setError(result.error || "Error al iniciar sesión");
+    if (!result.success) {
+      const msg = result.error === "Usuario no encontrado" ? t.usuarioNoEncontrado
+        : result.error === "Contraseña incorrecta" ? t.contrasenaIncorrecta
+        : t.errorLogin;
+      setError(msg);
+    }
   };
 
   return (
@@ -47,14 +54,12 @@ export function LoginForm() {
           <h1 className="text-4xl font-bold tracking-tight text-primary-foreground">
             FullCycle Solutions
           </h1>
-          <p className="mt-4 text-lg text-primary-foreground/70">
-            Reduciendo el desperdicio alimentario en hoteles y cruceros. Alineados con el ODS 2: Hambre Cero.
-          </p>
+          <p className="mt-4 text-lg text-primary-foreground/70">{t.loginHeroSub}</p>
           <div className="mt-8 grid grid-cols-3 gap-4">
             {[
-              { val: "1,240", label: "kg rescatados" },
-              { val: "12.5%", label: "reducción" },
-              { val: "3,224", label: "kg CO₂ evitados" },
+              { val: "1,240", label: t.kgRescatados },
+              { val: "12.5%", label: t.reduccion },
+              { val: "3,224", label: t.kgCO2 },
             ].map((s) => (
               <div key={s.label} className="rounded-lg bg-primary-foreground/10 p-3 backdrop-blur-sm">
                 <p className="text-xl font-bold text-primary-foreground">{s.val}</p>
@@ -71,17 +76,23 @@ export function LoginForm() {
           animate={{ opacity: 1, x: 0 }}
           className="w-full max-w-sm"
         >
-          <div className="mb-8 lg:hidden flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-              <Recycle size={22} className="text-primary-foreground" />
+          <div className="mb-8 flex items-center gap-3">
+            <div className="lg:hidden flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
+                <Recycle size={22} className="text-primary-foreground" />
+              </div>
+              <span className="text-xl font-bold">FullCycle</span>
             </div>
-            <span className="text-xl font-bold">FullCycle</span>
+            <button
+              onClick={() => setLang(lang === "es" ? "en" : "es")}
+              className="ml-auto rounded-md border border-input px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-accent transition-colors"
+            >
+              {lang === "es" ? "EN" : "ES"}
+            </button>
           </div>
 
-          <h2 className="text-2xl font-bold">Iniciar sesión</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ingresa tus credenciales para acceder al sistema
-          </p>
+          <h2 className="text-2xl font-bold">{t.iniciarSesion}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t.loginSub}</p>
 
           {error && (
             <motion.div
@@ -96,7 +107,7 @@ export function LoginForm() {
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
-              <Label htmlFor="email">Correo electrónico</Label>
+              <Label htmlFor="email">{t.correo}</Label>
               <Input
                 id="email"
                 type="email"
@@ -109,7 +120,7 @@ export function LoginForm() {
             </div>
 
             <div>
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password">{t.contrasena}</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -130,13 +141,11 @@ export function LoginForm() {
               {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password}</p>}
             </div>
 
-            <Button type="submit" className="w-full">
-              Ingresar
-            </Button>
+            <Button type="submit" className="w-full">{t.ingresar}</Button>
           </form>
 
           <div className="mt-6 rounded-lg bg-muted p-4">
-            <p className="mb-2 text-xs font-semibold text-muted-foreground">Credenciales de prueba:</p>
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">{t.credencialsPrueba}</p>
             <div className="space-y-1 text-xs text-muted-foreground">
               <p><span className="font-medium">Gerente:</span> gerente@fullcycle.com / Gerente123!</p>
               <p><span className="font-medium">Cocina:</span> cocina@fullcycle.com / Cocina123!</p>

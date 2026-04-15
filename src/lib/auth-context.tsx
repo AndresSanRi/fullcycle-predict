@@ -15,10 +15,10 @@ interface AuthContextType {
 }
 
 const MOCK_USERS: Record<string, { password: string; name: string; role: UserRole }> = {
-  "gerente@fullcycle.com": { password: "Gerente123!", name: "Carlos Mendoza", role: "gerente" },
-  "cocina@fullcycle.com": { password: "Cocina123!", name: "María García", role: "cocina" },
-  "compras@fullcycle.com": { password: "Compras123!", name: "Luis Pérez", role: "compras" },
-  "sostenibilidad@fullcycle.com": { password: "Sosten123!", name: "Ana Rodríguez", role: "sostenibilidad" },
+  "gerente@fullcycle.com": { password: "Gerente123!", name: "Miguel Ángel Feo", role: "gerente" },
+  "cocina@fullcycle.com": { password: "Cocina123!", name: "Andres Sanchez", role: "cocina" },
+  "compras@fullcycle.com": { password: "Compras123!", name: "Camilo Arciniegas", role: "compras" },
+  "sostenibilidad@fullcycle.com": { password: "Sosten123!", name: "Juan Diego Martinez", role: "sostenibilidad" },
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Recycle, Leaf, Heart, Utensils } from "lucide-react";
 import { contadorHuesped } from "@/lib/mock-data";
+import { useLang } from "@/lib/lang-context";
 
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
   return (
@@ -16,6 +17,7 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
 }
 
 export function HuespedView() {
+  const { t } = useLang();
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
       <motion.div
@@ -27,7 +29,7 @@ export function HuespedView() {
           <Recycle size={32} className="text-primary" />
         </div>
         <h1 className="text-2xl font-bold">FullCycle Solutions</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Tu consumo responsable hace la diferencia 🌱</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t.huespedSub}</p>
 
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
@@ -35,10 +37,10 @@ export function HuespedView() {
           transition={{ delay: 0.2 }}
           className="mt-8 rounded-2xl border bg-card p-8 shadow-lg"
         >
-          <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Esta semana hemos rescatado</p>
+          <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.semanaRescatado}</p>
           <div className="text-primary">
             <AnimatedCounter value={contadorHuesped.comidaRescatadaSemana} />
-            <p className="mt-1 text-lg font-medium">kilogramos de comida</p>
+            <p className="mt-1 text-lg font-medium">{t.kilogramos}</p>
           </div>
         </motion.div>
 
@@ -51,7 +53,7 @@ export function HuespedView() {
           >
             <Utensils size={24} className="mx-auto mb-2 text-primary" />
             <p className="text-2xl font-bold">{contadorHuesped.platosEquivalentes}</p>
-            <p className="text-xs text-muted-foreground">platos equivalentes</p>
+            <p className="text-xs text-muted-foreground">{t.platosEquivalentes}</p>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -61,7 +63,7 @@ export function HuespedView() {
           >
             <Leaf size={24} className="mx-auto mb-2 text-success" />
             <p className="text-2xl font-bold">{contadorHuesped.co2EvitadoSemana}</p>
-            <p className="text-xs text-muted-foreground">kg CO₂ evitados</p>
+            <p className="text-xs text-muted-foreground">{t.co2EvitadoSem}</p>
           </motion.div>
         </div>
 
@@ -72,17 +74,11 @@ export function HuespedView() {
           className="mt-6 rounded-xl bg-primary/5 p-4"
         >
           <Heart size={20} className="mx-auto mb-2 text-primary" />
-          <p className="text-sm font-medium text-foreground">
-            Juntos contribuimos al ODS 2: Hambre Cero
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Cada porción que sirves con conciencia ayuda a reducir el desperdicio alimentario global.
-          </p>
+          <p className="text-sm font-medium text-foreground">{t.ods2}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t.ods2Sub}</p>
         </motion.div>
 
-        <p className="mt-8 text-xs text-muted-foreground">
-          Powered by FullCycle Solutions • Universidad de La Sabana
-        </p>
+        <p className="mt-8 text-xs text-muted-foreground">{t.powered}</p>
       </motion.div>
     </div>
   );

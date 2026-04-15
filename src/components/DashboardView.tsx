@@ -2,48 +2,57 @@ import { motion } from "framer-motion";
 import { BarChart3, TrendingDown, DollarSign, Leaf } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from "recharts";
 import { StatCard } from "./StatCard";
-import { consumoVsDesperdicio, ahorroProyectado } from "@/lib/mock-data";
+import { consumoVsDesperdicioData, ahorroProyectadoData, statCardData, type PeriodKey } from "@/lib/mock-data";
 import { useState } from "react";
-
-const FILTROS = ["Diario", "Semanal", "Mensual"] as const;
+import { useLang } from "@/lib/lang-context";
 
 export function DashboardView() {
-  const [filtro, setFiltro] = useState<(typeof FILTROS)[number]>("Semanal");
+  const { t } = useLang();
+  const FILTROS: { label: string; key: PeriodKey }[] = [
+    { label: t.diario, key: "diario" },
+    { label: t.semanal, key: "semanal" },
+    { label: t.mensual, key: "mensual" },
+  ];
+  const [periodoKey, setPeriodoKey] = useState<PeriodKey>("semanal");
+
+  const stats = statCardData[periodoKey];
+  const barData = consumoVsDesperdicioData[periodoKey];
+  const lineData = ahorroProyectadoData[periodoKey];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard Analítico</h1>
-          <p className="text-sm text-muted-foreground">Consumo, desperdicio y ahorro en tiempo real</p>
+          <h1 className="text-2xl font-bold">{t.dashboardTitle}</h1>
+          <p className="text-sm text-muted-foreground">{t.dashboardSub}</p>
         </div>
         <div className="flex gap-1 rounded-lg bg-muted p-1">
           {FILTROS.map((f) => (
             <button
-              key={f}
-              onClick={() => setFiltro(f)}
+              key={f.key}
+              onClick={() => setPeriodoKey(f.key)}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                filtro === f ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                periodoKey === f.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {f}
+              {f.label}
             </button>
           ))}
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Consumo total" value="4,630 kg" icon={<BarChart3 size={20} />} trend={{ value: 3.2, label: "vs sem anterior" }} />
-        <StatCard title="Desperdicio" value="539 kg" subtitle="11.6% del total" icon={<TrendingDown size={20} />} trend={{ value: -8.5, label: "reducción" }} variant="success" />
-        <StatCard title="Ahorro proyectado" value="$4,800" subtitle="Abril 2026" icon={<DollarSign size={20} />} trend={{ value: 17, label: "vs mes anterior" }} />
-        <StatCard title="Comida rescatada" value="1,240 kg" subtitle="Acumulado del mes" icon={<Leaf size={20} />} variant="success" />
+        <StatCard title={t.consumoTotal} value={stats.consumo} icon={<BarChart3 size={20} />} trend={{ value: 3.2, label: t.vsAnterior }} />
+        <StatCard title={t.desperdicio} value={stats.desperdicio} subtitle={stats.desperdicioPct} icon={<TrendingDown size={20} />} trend={{ value: -8.5, label: t.reduccion }} variant="success" />
+        <StatCard title={t.ahorroProyectado} value={stats.ahorro} subtitle={stats.ahorroSub} icon={<DollarSign size={20} />} trend={{ value: 17, label: t.vsAnteriorMes }} />
+        <StatCard title={t.comidaRescatada} value={stats.rescatada} subtitle={t.acumuladoMes} icon={<Leaf size={20} />} variant="success" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl border bg-card p-5">
-          <h3 className="mb-4 text-sm font-semibold">Consumo vs Desperdicio por Turno (kg)</h3>
+        <motion.div key={`bar-${periodoKey}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl border bg-card p-5">
+          <h3 className="mb-4 text-sm font-semibold">{t.consumoVsDesperdicio}</h3>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={consumoVsDesperdicio} barGap={2}>
+            <BarChart data={barData} barGap={2}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="turno" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
@@ -56,10 +65,10 @@ export function DashboardView() {
           </ResponsiveContainer>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="rounded-xl border bg-card p-5">
-          <h3 className="mb-4 text-sm font-semibold">Proyección de Ahorro Mensual</h3>
+        <motion.div key={`line-${periodoKey}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="rounded-xl border bg-card p-5">
+          <h3 className="mb-4 text-sm font-semibold">{t.proyeccionAhorro}</h3>
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={ahorroProyectado}>
+            <LineChart data={lineData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 11 }} />

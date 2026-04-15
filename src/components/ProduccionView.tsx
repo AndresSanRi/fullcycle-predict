@@ -3,8 +3,10 @@ import { ChefHat, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { produccionRecomendada } from "@/lib/mock-data";
 import { StatCard } from "./StatCard";
 import { useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 export function ProduccionView() {
+  const { t } = useLang();
   const [aceptados, setAceptados] = useState<Set<string>>(new Set());
   const totalAhorro = produccionRecomendada.reduce((s, i) => s + (i.actual - i.recomendado), 0);
 
@@ -19,24 +21,24 @@ export function ProduccionView() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Recomendación de Producción</h1>
-        <p className="text-sm text-muted-foreground">Cantidades sugeridas basadas en 187 reservas para hoy</p>
+        <h1 className="text-2xl font-bold">{t.produccionTitle}</h1>
+        <p className="text-sm text-muted-foreground">{t.produccionSub}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard title="Reservas del día" value="187" icon={<ChefHat size={20} />} />
-        <StatCard title="Reducción potencial" value={`${totalAhorro} unidades`} icon={<AlertTriangle size={20} />} variant="warning" />
-        <StatCard title="Ítems aceptados" value={`${aceptados.size}/${produccionRecomendada.length}`} icon={<CheckCircle2 size={20} />} variant="success" />
+        <StatCard title={t.reservasDia} value="187" icon={<ChefHat size={20} />} />
+        <StatCard title={t.reduccionPotencial} value={`${totalAhorro} ${t.unidades}`} icon={<AlertTriangle size={20} />} variant="warning" />
+        <StatCard title={t.itemsAceptados} value={`${aceptados.size}/${produccionRecomendada.length}`} icon={<CheckCircle2 size={20} />} variant="success" />
       </div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border bg-card">
         <div className="grid grid-cols-7 gap-4 border-b px-5 py-3 text-xs font-semibold text-muted-foreground">
-          <span className="col-span-2">Ítem</span>
-          <span>Actual</span>
-          <span>Recomendado</span>
-          <span>Unidad</span>
-          <span>Confianza</span>
-          <span>Acción</span>
+          <span className="col-span-2">{t.item}</span>
+          <span>{t.actual}</span>
+          <span>{t.recomendado}</span>
+          <span>{t.unidad}</span>
+          <span>{t.confianza}</span>
+          <span>{t.accion}</span>
         </div>
         {produccionRecomendada.map((item, i) => (
           <motion.div
@@ -66,7 +68,7 @@ export function ProduccionView() {
                     : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
                 }`}
               >
-                {aceptados.has(item.item) ? "✓ Aceptado" : "Aceptar"}
+                {aceptados.has(item.item) ? t.aceptado : t.aceptar}
               </button>
             </span>
           </motion.div>

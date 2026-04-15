@@ -6,9 +6,11 @@ import { Button } from "./ui/button";
 import { DocumentUploader } from "./DocumentUploader";
 import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
+import { useLang } from "@/lib/lang-context";
 
 export function ComprasView() {
   const { user } = useAuth();
+  const { t } = useLang();
   const criticos = inventario.filter((i) => i.estado === "critico").length;
   const [descargando, setDescargando] = useState(false);
   const canUpload = user && ["gerente", "compras"].includes(user.role);
@@ -33,29 +35,29 @@ export function ComprasView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Gestión de Compras</h1>
-          <p className="text-sm text-muted-foreground">Inventario actual y pedidos sugeridos</p>
+          <h1 className="text-2xl font-bold">{t.comprasTitle}</h1>
+          <p className="text-sm text-muted-foreground">{t.comprasSub}</p>
         </div>
         {canUpload && <DocumentUploader />}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard title="Productos en inventario" value={inventario.length.toString()} icon={<Package size={20} />} />
-        <StatCard title="Alertas críticas" value={criticos.toString()} icon={<AlertTriangle size={20} />} variant="warning" />
-        <StatCard title="Pedidos pendientes" value={pedidoSugerido.length.toString()} icon={<ShoppingCart size={20} />} />
+        <StatCard title={t.productosInventario} value={inventario.length.toString()} icon={<Package size={20} />} />
+        <StatCard title={t.alertasCriticas} value={criticos.toString()} icon={<AlertTriangle size={20} />} variant="warning" />
+        <StatCard title={t.pedidosPendientes} value={pedidoSugerido.length.toString()} icon={<ShoppingCart size={20} />} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border bg-card">
           <div className="flex items-center justify-between border-b px-5 py-3">
-            <h3 className="text-sm font-semibold">Inventario Actual</h3>
+            <h3 className="text-sm font-semibold">{t.inventarioActual}</h3>
           </div>
           <div className="grid grid-cols-5 gap-2 border-b px-5 py-2 text-xs font-semibold text-muted-foreground">
-            <span>SKU</span>
-            <span>Nombre</span>
-            <span>Stock</span>
-            <span>Mínimo</span>
-            <span>Estado</span>
+            <span>{t.sku}</span>
+            <span>{t.nombre}</span>
+            <span>{t.stock}</span>
+            <span>{t.minimo}</span>
+            <span>{t.estado}</span>
           </div>
           {inventario.map((item, i) => (
             <motion.div
@@ -74,7 +76,7 @@ export function ComprasView() {
                   item.estado === "critico" ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"
                 }`}>
                   {item.estado === "critico" && <AlertTriangle size={12} />}
-                  {item.estado === "critico" ? "Crítico" : "OK"}
+                  {item.estado === "critico" ? t.critico : "OK"}
                 </span>
               </span>
             </motion.div>
@@ -83,18 +85,18 @@ export function ComprasView() {
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl border bg-card">
           <div className="flex items-center justify-between border-b px-5 py-3">
-            <h3 className="text-sm font-semibold">Pedido Sugerido</h3>
+            <h3 className="text-sm font-semibold">{t.pedidoSugerido}</h3>
             <Button size="sm" variant="outline" onClick={handleDescargar} disabled={descargando}>
               <Download size={14} className="mr-1" />
-              {descargando ? "Generando..." : "Descargar CSV"}
+              {descargando ? t.generando : t.descargarCSV}
             </Button>
           </div>
           <div className="grid grid-cols-5 gap-2 border-b px-5 py-2 text-xs font-semibold text-muted-foreground">
-            <span>SKU</span>
-            <span>Nombre</span>
-            <span>Actual</span>
-            <span>A pedir</span>
-            <span>Unidad</span>
+            <span>{t.sku}</span>
+            <span>{t.nombre}</span>
+            <span>{t.actual}</span>
+            <span>{t.aPedir}</span>
+            <span>{t.unidad}</span>
           </div>
           {pedidoSugerido.map((item, i) => (
             <motion.div
