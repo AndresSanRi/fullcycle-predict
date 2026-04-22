@@ -52,21 +52,8 @@ export function LoginForm() {
             <Recycle size={40} className="text-primary-foreground" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-primary-foreground">
-            FullCycle Solutions
+            FullCycle Predict
           </h1>
-          <p className="mt-4 text-lg text-primary-foreground/70">{t.loginHeroSub}</p>
-          <div className="mt-8 grid grid-cols-3 gap-4">
-            {[
-              { val: "1,240", label: t.kgRescatados },
-              { val: "12.5%", label: t.reduccion },
-              { val: "3,224", label: t.kgCO2 },
-            ].map((s) => (
-              <div key={s.label} className="rounded-lg bg-primary-foreground/10 p-3 backdrop-blur-sm">
-                <p className="text-xl font-bold text-primary-foreground">{s.val}</p>
-                <p className="text-xs text-primary-foreground/60">{s.label}</p>
-              </div>
-            ))}
-          </div>
         </motion.div>
       </div>
 
@@ -111,7 +98,7 @@ export function LoginForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="gerente@fullcycle.com"
+                placeholder="Correo"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: undefined })); }}
                 className={errors.email ? "border-destructive" : ""}
@@ -125,7 +112,7 @@ export function LoginForm() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  placeholder="Contraseña"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: undefined })); }}
                   className={errors.password ? "border-destructive pr-10" : "pr-10"}
@@ -143,16 +130,6 @@ export function LoginForm() {
 
             <Button type="submit" className="w-full">{t.ingresar}</Button>
           </form>
-
-          <div className="mt-6 rounded-lg bg-muted p-4">
-            <p className="mb-2 text-xs font-semibold text-muted-foreground">{t.credencialsPrueba}</p>
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p><span className="font-medium">Gerente:</span> gerente@fullcycle.com / Gerente123!</p>
-              <p><span className="font-medium">Cocina:</span> cocina@fullcycle.com / Cocina123!</p>
-              <p><span className="font-medium">Compras:</span> compras@fullcycle.com / Compras123!</p>
-              <p><span className="font-medium">Sostenibilidad:</span> sostenibilidad@fullcycle.com / Sosten123!</p>
-            </div>
-          </div>
         </motion.div>
       </div>
     </div>
