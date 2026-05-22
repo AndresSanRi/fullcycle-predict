@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { DashboardView } from "@/components/DashboardView";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AppShell } from "@/components/AppShell";
 import { useEffect } from "react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -20,11 +20,8 @@ function DashboardPage() {
   if (!user) return null;
 
   return (
-    <div className="flex min-h-screen">
-      <AppSidebar />
-      <main className="flex-1 overflow-auto p-6 lg:p-8">
-        <DashboardView />
-      </main>
-    </div>
+    <AppShell>
+      <DashboardView />
+    </AppShell>
   );
 }

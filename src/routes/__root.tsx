@@ -2,6 +2,7 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 import { AuthProvider } from "@/lib/auth-context";
 import { LangProvider } from "@/lib/lang-context";
 import { InventarioProvider } from "@/lib/inventario-store";
+import { SostenibilidadProvider } from "@/lib/sostenibilidad-store";
 import { TarjetaProvider } from "@/lib/tarjeta-store";
 
 import appCss from "../styles.css?url";
@@ -77,9 +78,11 @@ function RootComponent() {
     <LangProvider>
       <AuthProvider>
         <InventarioProvider>
-          <TarjetaProvider>
-            <Outlet />
-          </TarjetaProvider>
+          <SostenibilidadProvider>
+            <TarjetaProvider>
+              <Outlet />
+            </TarjetaProvider>
+          </SostenibilidadProvider>
         </InventarioProvider>
       </AuthProvider>
     </LangProvider>

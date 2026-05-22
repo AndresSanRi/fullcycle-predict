@@ -8,7 +8,7 @@ interface StatCardProps {
   subtitle?: string;
   icon: ReactNode;
   trend?: { value: number; label: string };
-  variant?: "default" | "success" | "warning";
+  variant?: "default" | "success" | "warning" | "destructive";
   tooltip?: string;
 }
 
@@ -17,6 +17,7 @@ export function StatCard({ title, value, subtitle, icon, trend, variant = "defau
     default: "bg-card border-border",
     success: "bg-success/5 border-success/20",
     warning: "bg-warning/5 border-warning/20",
+    destructive: "bg-destructive/5 border-destructive/20",
   };
 
   return (

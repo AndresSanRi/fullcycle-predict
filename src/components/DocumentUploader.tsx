@@ -1,83 +1,42 @@
 import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle, X, TrendingDown, TrendingUp, BarChart3 } from "lucide-react";
+import {
+  Upload, FileSpreadsheet, AlertTriangle, CheckCircle, X,
+  TrendingDown, TrendingUp, BarChart3,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
-import Papa from "papaparse";
-import * as XLSX from "xlsx";
 import { useLang } from "@/lib/lang-context";
-import { useInventario, type ProductoInventario, type PedidoItem } from "@/lib/inventario-store";
-
-interface ParsedRow {
-  sku: string;
-  nombre: string;
-  stock: number;
-  minimo: number;
-  unidad: string;
-}
-
-interface AnalysisResult {
-  totalProductos: number;
-  criticos: ParsedRow[];
-  saludables: ParsedRow[];
-  stockTotal: number;
-  alertas: string[];
-  sugerencias: { sku: string; nombre: string; cantidadActual: number; cantidadPedir: number; unidad: string }[];
-}
-
-function analyzeData(rows: ParsedRow[], productosBajoMinimo: string, masDe50: string): AnalysisResult {
-  const criticos = rows.filter((r) => r.stock < r.minimo);
-  const saludables = rows.filter((r) => r.stock >= r.minimo);
-  const stockTotal = rows.reduce((sum, r) => sum + r.stock, 0);
-
-  const alertas: string[] = [];
-  if (criticos.length > 0) alertas.push(`${criticos.length} ${productosBajoMinimo}`);
-  if (criticos.length > rows.length * 0.5) alertas.push(masDe50);
-
-  const sugerencias = criticos.map((c) => ({
-    sku: c.sku,
-    nombre: c.nombre,
-    cantidadActual: c.stock,
-    // Cantidad exacta para llegar al mínimo: minimo - stock
-    cantidadPedir: Math.max(0, c.minimo - c.stock),
-    unidad: c.unidad,
-  }));
-
-  return { totalProductos: rows.length, criticos, saludables, stockTotal, alertas, sugerencias };
-}
-
-function normalizeHeaders(headers: string[]): Record<string, string> {
-  const map: Record<string, string> = {};
-  const patterns: Record<string, string[]> = {
-    sku: ["sku", "codigo", "código", "code", "id"],
-    nombre: ["nombre", "name", "producto", "item", "descripcion", "descripción"],
-    stock: ["stock", "cantidad", "qty", "quantity", "existencia", "inventario"],
-    minimo: ["minimo", "mínimo", "min", "minimum", "reorder", "punto_reorden"],
-    unidad: ["unidad", "unit", "uom", "medida"],
-  };
-
-  for (const header of headers) {
-    const normalized = header.toLowerCase().trim().replace(/[^a-záéíóúñü0-9]/gi, "");
-    for (const [key, aliases] of Object.entries(patterns)) {
-      if (aliases.some((a) => normalized.includes(a))) {
-        map[header] = key;
-        break;
-      }
-    }
-  }
-  return map;
-}
+import { inventario as catalogoInventario } from "@/lib/mock-data";
+import { useInventario } from "@/lib/inventario-store";
+import {
+  downloadInventarioPlantilla,
+  importInventarioFile,
+  estadoInventario,
+  type InventarioAnalysis,
+} from "@/lib/inventario-import";
 
 export function DocumentUploader() {
   const { t } = useLang();
-  const { setInventario } = useInventario();
+  const { inventario, setInventario } = useInventario();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [analysis, setAnalysis] = useState<InventarioAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
+
+  const messages = {
+    formatoNoSoportado: t.formatoNoSoportado,
+    archivoVacio: t.archivoVacio,
+    sinColumnasSKU: t.sinColumnasSKU,
+    sinDatosValidos: t.sinDatosValidos,
+    errorProcesar: t.errorProcesar,
+    errorLeer: t.errorLeer,
+    productosBajoMinimo: t.productosBajoMinimo,
+    masDe50: t.masDe50,
+  };
 
   const reset = () => {
     setFile(null);
@@ -86,147 +45,49 @@ export function DocumentUploader() {
     setParsing(false);
   };
 
-  const processFile = useCallback((f: File) => {
+  const processFile = useCallback(async (f: File) => {
     reset();
     setFile(f);
     setParsing(true);
+    const result = await importInventarioFile(f, messages);
+    setParsing(false);
 
-    const ext = f.name.split(".").pop()?.toLowerCase();
-    const isExcel = ["xlsx", "xls"].includes(ext || "");
-    const isCsvOrTxt = ["csv", "txt"].includes(ext || "");
-
-    if (!isExcel && !isCsvOrTxt) {
-      setError(t.formatoNoSoportado);
-      setParsing(false);
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
 
-    const parseData = (input: File | string) => {
-      Papa.parse(input as any, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          try {
-            if (!results.data || results.data.length === 0) {
-              setError(t.archivoVacio);
-              setParsing(false);
-              return;
-            }
-
-            const headers = Object.keys(results.data[0] as Record<string, unknown>);
-            const headerMap = normalizeHeaders(headers);
-
-            if (!headerMap[headers.find((h) => normalizeHeaders([h])[h] === "sku") || ""] &&
-                !Object.values(headerMap).includes("sku")) {
-              setError(t.sinColumnasSKU);
-              setParsing(false);
-              return;
-            }
-
-            const rows: ParsedRow[] = [];
-            for (const raw of results.data as Record<string, string>[]) {
-              const mapped: Record<string, string> = {};
-              for (const [origHeader, value] of Object.entries(raw)) {
-                const key = headerMap[origHeader];
-                if (key) mapped[key] = value;
-              }
-
-              if (mapped.sku && mapped.nombre) {
-                rows.push({
-                  sku: mapped.sku.trim(),
-                  nombre: mapped.nombre.trim(),
-                  stock: parseFloat(mapped.stock) || 0,
-                  minimo: parseFloat(mapped.minimo) || 0,
-                  unidad: mapped.unidad?.trim() || "und",
-                });
-              }
-            }
-
-            if (rows.length === 0) {
-              setError(t.sinDatosValidos);
-              setParsing(false);
-              return;
-            }
-
-            const resultado = analyzeData(rows, t.productosBajoMinimo, t.masDe50);
-            setAnalysis(resultado);
-
-            // Persistir en el store global
-            const productos: ProductoInventario[] = rows.map((r) => ({
-              sku: r.sku,
-              nombre: r.nombre,
-              stock: r.stock,
-              minimo: r.minimo,
-              unidad: r.unidad,
-            }));
-            const pedido: PedidoItem[] = resultado.sugerencias.map((s) => ({
-              sku: s.sku,
-              nombre: s.nombre,
-              cantidadActual: s.cantidadActual,
-              cantidadPedir: s.cantidadPedir,
-              unidad: s.unidad,
-            }));
-            setInventario(productos, pedido);
-
-            setParsing(false);
-          } catch {
-            setError(t.errorProcesar);
-            setParsing(false);
-          }
-        },
-        error: () => {
-          setError(t.errorLeer);
-          setParsing(false);
-        },
-      });
-    };
-
-    if (isExcel) {
-      f.arrayBuffer().then((buffer) => {
-        try {
-          const workbook = XLSX.read(buffer, { type: "array" });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const csv = XLSX.utils.sheet_to_csv(worksheet);
-          parseData(csv);
-        } catch {
-          setError(t.errorProcesar);
-          setParsing(false);
-        }
-      }).catch(() => {
-        setError(t.errorLeer);
-        setParsing(false);
-      });
-    } else {
-      parseData(f);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [t]);
+    setAnalysis(result.analysis);
+    setInventario(result.productos, result.pedido);
+  }, [messages, setInventario]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setDragOver(false);
       const f = e.dataTransfer.files[0];
-      if (f) processFile(f);
+      if (f) void processFile(f);
     },
-    [processFile]
+    [processFile],
   );
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) processFile(f);
+    if (f) void processFile(f);
   };
 
   const descargarPlantilla = () => {
-    const data = [
-      { SKU: "INS-001", Nombre: "Ejemplo Producto", Stock: 10, Minimo: 20, Unidad: "kg" },
-      { SKU: "INS-002", Nombre: "Otro Producto", Stock: 50, Minimo: 15, Unidad: "und" },
-    ];
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Plantilla");
-    XLSX.writeFile(workbook, "plantilla_inventario.xlsx");
+    const productos =
+      inventario.length > 0
+        ? inventario
+        : catalogoInventario.map(({ sku, nombre, stock, minimo, unidad }) => ({
+            sku,
+            nombre,
+            stock,
+            minimo,
+            unidad,
+          }));
+    downloadInventarioPlantilla(productos);
   };
 
   return (
@@ -368,13 +229,17 @@ export function DocumentUploader() {
                       <span>{r.nombre}</span>
                       <span>{r.stock} {r.unidad}</span>
                       <span className="text-muted-foreground">{r.minimo} {r.unidad}</span>
-                      <span className={r.stock < r.minimo ? "text-destructive font-medium" : "text-success"}>
-                        {r.stock < r.minimo ? t.critico : "OK"}
+                      <span className={estadoInventario(r.stock, r.minimo) === "critico" ? "text-destructive font-medium" : "text-success"}>
+                        {estadoInventario(r.stock, r.minimo) === "critico" ? t.critico : "OK"}
                       </span>
                     </div>
                   ))}
                 </div>
               </details>
+
+              <Button className="w-full" onClick={() => setOpen(false)}>
+                {t.verInventarioCompras ?? "Ver en inventario"}
+              </Button>
             </motion.div>
           )}
         </DialogContent>

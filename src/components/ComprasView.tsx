@@ -8,8 +8,9 @@ import { inventario as mockInventario, pedidoSugerido as mockPedido, proveedores
 import { StatCard } from "./StatCard";
 import { Button } from "./ui/button";
 import { DocumentUploader } from "./DocumentUploader";
+import { InventarioUploadCard } from "./InventarioUploadCard";
+import { estadoInventario } from "@/lib/inventario-import";
 import { PagoModal } from "./PagoModal";
-import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
 import { useLang } from "@/lib/lang-context";
 import { useInventario, type PedidoItem, type EstadoPedido } from "@/lib/inventario-store";
@@ -25,7 +26,6 @@ const ESTADO_ICON: Record<EstadoPedido, React.ReactNode> = {
 };
 
 export function ComprasView() {
-  const { user } = useAuth();
   const { t } = useLang();
   const {
     inventario: invReal, pedidoSugerido: pedidoReal,
@@ -34,12 +34,10 @@ export function ComprasView() {
   } = useInventario();
   const [descargando, setDescargando] = useState(false);
   const [pagoItem, setPagoItem] = useState<PedidoItem | null>(null);
-  const canUpload = user && ["gerente", "compras"].includes(user.role);
-
   // invReal tiene datos tanto si hay CSV cargado como si hubo un pago en modo demo
   const hasStoreData = invReal.length > 0;
   const inventario = hasStoreData
-    ? invReal.map((p) => ({ ...p, estado: (p.stock < p.minimo ? "critico" : "ok") as "critico" | "ok" }))
+    ? invReal.map((p) => ({ ...p, estado: estadoInventario(p.stock, p.minimo) }))
     : mockInventario;
   const pedido = hasStoreData ? pedidoReal : mockPedido;
   const criticos = inventario.filter((i) => i.estado === "critico").length;
@@ -104,8 +102,10 @@ export function ComprasView() {
             </span>
           </div>
         </div>
-        {canUpload && <DocumentUploader />}
+        <DocumentUploader />
       </div>
+
+      <InventarioUploadCard compact={tieneDataReal} />
 
       {/* ── Stat cards ─────────────────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-4">
