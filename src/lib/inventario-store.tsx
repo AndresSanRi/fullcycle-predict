@@ -68,6 +68,7 @@ interface InventarioContextType extends InventarioState {
   ) => void;
   agregarDesperdicio: (registro: RegistroDesperdicio) => void;
   donarDesperdicioHoy: () => void;
+  donarRegistro: (item: string, fecha?: string) => void;
   tieneDataReal: boolean;
 }
 
@@ -208,6 +209,24 @@ export function InventarioProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const donarRegistro = (item: string, fecha?: string) => {
+    setState((prev) => {
+      let marcado = false;
+      const targetDate = fecha ?? new Date().toISOString().slice(0, 10);
+      const actualizados = prev.registrosDesperdicio.map((r) => {
+        if (!marcado && r.item === item && r.fecha === targetDate && r.estado !== "donado") {
+          marcado = true;
+          return { ...r, estado: "donado" as const };
+        }
+        return r;
+      });
+      return {
+        ...prev,
+        registrosDesperdicio: actualizados,
+      };
+    });
+  };
+
   const tieneDataReal = state.inventario.length > 0;
 
   return (
@@ -220,6 +239,7 @@ export function InventarioProvider({ children }: { children: ReactNode }) {
         registrarPago,
         agregarDesperdicio,
         donarDesperdicioHoy,
+        donarRegistro,
         tieneDataReal,
       }}
     >

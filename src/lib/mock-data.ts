@@ -160,3 +160,48 @@ export const preciosPorSku: Record<string, number> = {
   "INS-007": 3200,
   "INS-008": 420,
 };
+
+// Bancos de alimentos y las necesidades que prefieren (keywords sobre ítems)
+export interface BancoAlimentos {
+  id: string;
+  nombre: string;
+  necesidades: string[]; // palabras clave de productos que prefieren recibir
+  distanciaKm: number;
+  fiabilidadPct: number;
+  badge?: string;
+}
+
+export const bancosAlimentos: BancoAlimentos[] = [
+  {
+    id: "BA-001",
+    nombre: "Banco de Alimentos Diocesano",
+    necesidades: ["Pan", "Pan artesanal", "Pan"],
+    distanciaKm: 1.6,
+    fiabilidadPct: 99.0,
+    badge: "Especialidad: Pan",
+  },
+  {
+    id: "BA-002",
+    nombre: "Red Alimentaria Norte",
+    necesidades: ["Fruta", "Fruta fresca", "Postre", "Ensalada"],
+    distanciaKm: 3.2,
+    fiabilidadPct: 96.5,
+    badge: "Frutas y verduras",
+  },
+  {
+    id: "BA-003",
+    nombre: "Centro de Donación Popular",
+    necesidades: ["Arroz", "Pasta", "Sopa", "Leche"],
+    distanciaKm: 2.8,
+    fiabilidadPct: 95.0,
+    badge: "Comidas básicas",
+  },
+  {
+    id: "BA-004",
+    nombre: "Comedores Unidos",
+    necesidades: ["Pollo", "Carne", "Huevos"],
+    distanciaKm: 4.1,
+    fiabilidadPct: 92.3,
+    badge: "Proteínas",
+  },
+];

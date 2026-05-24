@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ChefHat, AlertTriangle, CheckCircle2, ClipboardList, Heart } from "lucide-react";
-import { produccionRecomendada } from "@/lib/mock-data";
+import { produccionRecomendada, bancosAlimentos, BancoAlimentos } from "@/lib/mock-data";
 import { StatCard } from "./StatCard";
 import { useState } from "react";
 import { useLang } from "@/lib/lang-context";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 
 export function ProduccionView() {
   const { t } = useLang();
-  const { registrosDesperdicio, agregarDesperdicio, donarDesperdicioHoy } = useInventario();
+  const { registrosDesperdicio, agregarDesperdicio, donarDesperdicioHoy, donarRegistro } = useInventario();
   
   // Estado local para confirmación de optimización de ítem individual
   const [itemPorOptimizar, setItemPorOptimizar] = useState<typeof produccionRecomendada[0] | null>(null);
@@ -19,6 +19,11 @@ export function ProduccionView() {
   const [donarOpen, setDonarOpen] = useState(false);
   const [donarSuccess, setDonarSuccess] = useState(false);
   const [cantidadDonadaExito, setCantidadDonadaExito] = useState(0);
+  const [bancoSeleccionado, setBancoSeleccionado] = useState<BancoAlimentos | null>(null);
+  const [registroSeleccionado, setRegistroSeleccionado] = useState<RegistroDesperdicio | null>(null);
+  const [pendingQueue, setPendingQueue] = useState<typeof registrosDesperdicio>([]);
+  const [pendingIndex, setPendingIndex] = useState(0);
+  const [candidateBancos, setCandidateBancos] = useState<BancoAlimentos[]>([]);
 
   const hoy = new Date().toISOString().slice(0, 10);
   const registrosHoy = registrosDesperdicio.filter((r) => r.fecha === hoy);
@@ -62,11 +67,121 @@ export function ProduccionView() {
   };
 
   const handleDonarClick = () => {
+    // Iniciar cola de donaciones: confirmaciones por registro en orden
+    const pendientes = excedentesPendientesDonacion;
+    if (pendientes.length === 0) return;
+
+    // Inicializar queue (copia para proceso secuencial)
+    setPendingQueue(pendientes);
+    setPendingIndex(0);
+    const first = pendientes[0];
+
+    // Seleccionar candidatos (top 3) para el primer registro
+    const computeTopCandidates = (itemName: string, cantidad: number) => {
+      const name = itemName.toLowerCase();
+      const scores = bancosAlimentos.map((b) => {
+        let score = 0;
+        b.necesidades.forEach((k) => {
+          if (name.includes(k.toLowerCase())) score += cantidad;
+        });
+        return { banco: b, score };
+      });
+      // Si todos score 0, fallback por distancia+fiabilidad
+      const anyPositive = scores.some((s) => s.score > 0);
+      if (!anyPositive) {
+        return bancosAlimentos.slice().sort((a, b) => a.distanciaKm - b.distanciaKm || b.fiabilidadPct - a.fiabilidadPct).slice(0, 3);
+      }
+      return scores.sort((a, b) => b.score - a.score || a.banco.distanciaKm - b.banco.distanciaKm).map((s) => s.banco).slice(0, 3);
+    };
+
+    const candidates = computeTopCandidates(first.item, first.cantidad);
+    setCandidateBancos(candidates);
+    setRegistroSeleccionado(first);
+    setBancoSeleccionado(candidates[0] || null);
+    setCantidadDonadaExito(0);
+    setDonarOpen(true);
+    setDonarSuccess(false);
+  };
+
+  const handleDonarRegistroClick = (registro: typeof registrosDesperdicio[0]) => {
+    // Seleccionar banco basado únicamente en el nombre del ítem del registro
+    const nombre = registro.item.toLowerCase();
+    let maxScore = 0;
+    let elegido: BancoAlimentos | null = null;
+    const computeTopCandidates = (itemName: string, cantidad: number) => {
+      const name = itemName.toLowerCase();
+      const scores = bancosAlimentos.map((b) => {
+        let score = 0;
+        b.necesidades.forEach((k) => {
+          if (name.includes(k.toLowerCase())) score += cantidad;
+        });
+        return { banco: b, score };
+      });
+      const anyPositive = scores.some((s) => s.score > 0);
+      if (!anyPositive) {
+        return bancosAlimentos.slice().sort((a, b) => a.distanciaKm - b.distanciaKm || b.fiabilidadPct - a.fiabilidadPct).slice(0, 3);
+      }
+      return scores.sort((a, b) => b.score - a.score || a.banco.distanciaKm - b.banco.distanciaKm).map((s) => s.banco).slice(0, 3);
+    };
+
+    const candidates = computeTopCandidates(registro.item, registro.cantidad);
+    // Single-item queue
+    setPendingQueue([registro]);
+    setPendingIndex(0);
+    setRegistroSeleccionado(registro);
+    setCandidateBancos(candidates);
+    setBancoSeleccionado(candidates[0] || null);
+    setCantidadDonadaExito(0);
     setDonarOpen(true);
     setDonarSuccess(false);
   };
 
   const confirmarDonacion = () => {
+    if (registroSeleccionado) {
+      // Donar el registro actual
+      donarRegistro(registroSeleccionado.item, registroSeleccionado.fecha);
+      const nuevoAcumulado = cantidadDonadaExito + registroSeleccionado.cantidad;
+      setCantidadDonadaExito(nuevoAcumulado);
+
+      // Avanzar en la cola
+      const nextIndex = pendingIndex + 1;
+      if (nextIndex < pendingQueue.length) {
+        const next = pendingQueue[nextIndex];
+        // Seleccionar candidatos y banco para siguiente
+        const computeTopCandidates = (itemName: string, cantidad: number) => {
+          const name = itemName.toLowerCase();
+          const scores = bancosAlimentos.map((b) => {
+            let score = 0;
+            b.necesidades.forEach((k) => {
+              if (name.includes(k.toLowerCase())) score += cantidad;
+            });
+            return { banco: b, score };
+          });
+          const anyPositive = scores.some((s) => s.score > 0);
+          if (!anyPositive) {
+            return bancosAlimentos.slice().sort((a, b) => a.distanciaKm - b.distanciaKm || b.fiabilidadPct - a.fiabilidadPct).slice(0, 3);
+          }
+          return scores.sort((a, b) => b.score - a.score || a.banco.distanciaKm - b.banco.distanciaKm).map((s) => s.banco).slice(0, 3);
+        };
+
+        const candidates = computeTopCandidates(next.item, next.cantidad);
+        setPendingIndex(nextIndex);
+        setRegistroSeleccionado(next);
+        setCandidateBancos(candidates);
+        setBancoSeleccionado(candidates[0] || null);
+        // mantener dialogo abierto para siguiente confirmación
+        return;
+      }
+
+      // Si no quedan más, terminar proceso
+      setRegistroSeleccionado(null);
+      setPendingQueue([]);
+      setPendingIndex(0);
+      setDonarSuccess(true);
+      return;
+    }
+
+    // Si no hay registroSeleccionado, es una donación global (fallback)
     setCantidadDonadaExito(totalPendienteDonacion);
     donarDesperdicioHoy();
     setDonarSuccess(true);
@@ -180,9 +295,17 @@ export function ProduccionView() {
                     <Heart size={10} className="fill-current" /> Donado a Banco de Alimentos
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-semibold text-warning">
-                    <CheckCircle2 size={10} /> {t.desperdicioRegistrado}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-semibold text-warning">
+                      <CheckCircle2 size={10} /> {t.desperdicioRegistrado}
+                    </span>
+                    <button
+                      onClick={() => handleDonarRegistroClick(r)}
+                      className="rounded-md bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      Donar
+                    </button>
+                  </div>
                 )}
               </span>
             </div>
@@ -235,34 +358,48 @@ export function ProduccionView() {
                   Donar Excedentes Alimentarios
                 </DialogTitle>
                 <DialogDescription className="pt-3 space-y-4">
-                  <p className="text-sm">
-                    Estás a punto de donar un total de{" "}
-                    <strong className="text-primary text-base font-bold">
-                      {totalPendienteDonacion.toFixed(1)} kg
-                    </strong>{" "}
-                    de excedentes alimentarios aptos para consumo humano.
-                  </p>
+                  {registroSeleccionado ? (
+                    <p className="text-sm">
+                      Estás a punto de donar <strong className="text-primary text-base font-bold">{registroSeleccionado.cantidad} {registroSeleccionado.cantidad === 1 ? registroSeleccionado.item : "kg"}</strong> de <strong>{registroSeleccionado.item}</strong>.
+                    </p>
+                  ) : (
+                    <p className="text-sm">
+                      Estás a punto de donar un total de <strong className="text-primary text-base font-bold">{totalPendienteDonacion.toFixed(1)} kg</strong> de excedentes alimentarios aptos para consumo humano.
+                    </p>
+                  )}
                   
                   {/* Tarjeta del Banco de Alimentos asignado */}
                   <div className="rounded-xl border bg-muted/40 p-4 space-y-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-semibold text-sm text-foreground">Banco de Alimentos Arquidiocesano</h4>
-                        <p className="text-xs text-muted-foreground mt-0.5">Socio de Red Local de Donaciones</p>
-                      </div>
-                      <span className="inline-flex rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success">
-                        El más confiable
-                      </span>
+                    <div>
+                      <h4 className="font-semibold text-sm text-foreground">Elige banco receptor</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">Selecciona uno de los bancos sugeridos para esta donación.</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-muted">
-                      <div>
-                        <span className="text-muted-foreground block">Distancia</span>
-                        <strong className="text-foreground">2.4 km (Cercano)</strong>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block">Fiabilidad</span>
-                        <strong className="text-foreground">99.4% (Excelente)</strong>
-                      </div>
+                    <div className="grid gap-2 pt-2">
+                      {candidateBancos.length > 0 ? (
+                        candidateBancos.map((b) => (
+                          <button
+                            key={b.id}
+                            onClick={() => setBancoSeleccionado(b)}
+                            className={`w-full text-left rounded-lg border p-3 transition-colors ${bancoSeleccionado?.id === b.id ? "border-primary bg-primary/5" : "border-transparent hover:border-muted"}`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-semibold text-sm">{b.nombre}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">{b.badge || "Socio de Red"}</div>
+                              </div>
+                              <div className="text-right text-xs">
+                                <div className="text-foreground">{b.distanciaKm} km</div>
+                                <div className="text-success">{b.fiabilidadPct.toFixed(1)}%</div>
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div>
+                          <h4 className="font-semibold text-sm text-foreground">Banco de Alimentos (Asignación automática)</h4>
+                          <p className="text-xs text-muted-foreground mt-0.5">Se seleccionará el banco más cercano o disponible para esta donación.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -300,7 +437,11 @@ export function ProduccionView() {
               <div>
                 <DialogTitle className="text-xl font-bold text-foreground">¡Donación Programada con Éxito!</DialogTitle>
                 <DialogDescription className="mt-2 text-sm max-w-sm">
-                  El **Banco de Alimentos Arquidiocesano** ha recibido la solicitud. El recolector asignado llegará en aproximadamente **35 minutos**.
+                  {bancoSeleccionado ? (
+                    <>{bancoSeleccionado.nombre} ha recibido la solicitud. El recolector asignado llegará en aproximadamente <strong>35 minutos</strong>.</>
+                  ) : (
+                    <>El banco receptor ha recibido la solicitud. El recolector asignado llegará en aproximadamente <strong>35 minutos</strong>.</>
+                  )}
                 </DialogDescription>
               </div>
               <div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg border w-full text-left space-y-1">
