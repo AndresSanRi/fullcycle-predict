@@ -69,6 +69,7 @@ interface InventarioContextType extends InventarioState {
   agregarDesperdicio: (registro: RegistroDesperdicio) => void;
   donarDesperdicioHoy: () => void;
   donarRegistro: (item: string, fecha?: string) => void;
+  limpiarRegistrosDesperdicio: () => void;
   tieneDataReal: boolean;
 }
 
@@ -143,6 +144,13 @@ export function InventarioProvider({ children }: { children: ReactNode }) {
   const clearInventario = () => {
     setState(INITIAL_STATE);
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* noop */ }
+  };
+
+  const limpiarRegistrosDesperdicio = () => {
+    setState((prev) => ({
+      ...prev,
+      registrosDesperdicio: [],
+    }));
   };
 
   const setEstadoPedido = (sku: string, estado: EstadoPedido) => {
@@ -240,6 +248,7 @@ export function InventarioProvider({ children }: { children: ReactNode }) {
         agregarDesperdicio,
         donarDesperdicioHoy,
         donarRegistro,
+        limpiarRegistrosDesperdicio,
         tieneDataReal,
       }}
     >

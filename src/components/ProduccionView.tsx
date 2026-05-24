@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 
 export function ProduccionView() {
   const { t } = useLang();
-  const { registrosDesperdicio, agregarDesperdicio, donarDesperdicioHoy, donarRegistro } = useInventario();
+  const { registrosDesperdicio, agregarDesperdicio, donarDesperdicioHoy, donarRegistro, limpiarRegistrosDesperdicio } = useInventario();
   
   // Estado local para confirmación de optimización de ítem individual
   const [itemPorOptimizar, setItemPorOptimizar] = useState<typeof produccionRecomendada[0] | null>(null);
@@ -38,6 +38,38 @@ export function ProduccionView() {
   // Excedentes aún no donados hoy
   const excedentesPendientesDonacion = registrosHoy.filter((r) => r.estado !== "donado");
   const totalPendienteDonacion = excedentesPendientesDonacion.reduce((s, r) => s + r.cantidad, 0);
+
+  const getCandidateBancos = (itemName: string, cantidad: number) => {
+    const name = itemName.toLowerCase();
+    const matching = bancosAlimentos.filter((b) =>
+      b.necesidades.some((k) => name.includes(k.toLowerCase())),
+    );
+
+    // If we have matching banks, sort them and then fill up to 3
+    if (matching.length > 0) {
+      const sortedMatching = matching
+        .slice()
+        .sort((a, b) => a.distanciaKm - b.distanciaKm || b.fiabilidadPct - a.fiabilidadPct);
+
+      const result = sortedMatching.slice(0, 3);
+      if (result.length < 3) {
+        const takenIds = new Set(result.map((r) => r.id));
+        const others = bancosAlimentos
+          .filter((b) => !takenIds.has(b.id))
+          .slice()
+          .sort((a, b) => a.distanciaKm - b.distanciaKm || b.fiabilidadPct - a.fiabilidadPct);
+        for (const o of others) {
+          result.push(o);
+          if (result.length === 3) break;
+        }
+      }
+
+      return result;
+    }
+
+    // No direct matches: return top 3 by distance/fiability
+    return bancosAlimentos.slice().sort((a, b) => a.distanciaKm - b.distanciaKm || b.fiabilidadPct - a.fiabilidadPct).slice(0, 3);
+  };
 
   // Obtener el conjunto de nombres de ítems ya registrados el día de hoy
   const itemsRegistradosHoy = new Set(registrosHoy.map((r) => r.item));
@@ -82,28 +114,10 @@ export function ProduccionView() {
     setPendingIndex(0);
     const first = pendientes[0];
 
-    // Seleccionar candidatos (top 3) para el primer registro
-    const computeTopCandidates = (itemName: string, cantidad: number) => {
-      const name = itemName.toLowerCase();
-      const scores = bancosAlimentos.map((b) => {
-        let score = 0;
-        b.necesidades.forEach((k) => {
-          if (name.includes(k.toLowerCase())) score += cantidad;
-        });
-        return { banco: b, score };
-      });
-      // Si todos score 0, fallback por distancia+fiabilidad
-      const anyPositive = scores.some((s) => s.score > 0);
-      if (!anyPositive) {
-        return bancosAlimentos.slice().sort((a, b) => a.distanciaKm - b.distanciaKm || b.fiabilidadPct - a.fiabilidadPct).slice(0, 3);
-      }
-      return scores.sort((a, b) => b.score - a.score || a.banco.distanciaKm - b.banco.distanciaKm).map((s) => s.banco).slice(0, 3);
-    };
-
-    const candidates = computeTopCandidates(first.item, first.cantidad);
+    const candidates = getCandidateBancos(first.item, first.cantidad);
     setCandidateBancos(candidates);
     setRegistroSeleccionado(first);
-    setBancoSeleccionado(candidates[0] || null);
+    setBancoSeleccionado(null);
     setCantidadDonadaExito(0);
     setDonarOpen(true);
     setDonarSuccess(false);
@@ -111,32 +125,13 @@ export function ProduccionView() {
 
   const handleDonarRegistroClick = (registro: typeof registrosDesperdicio[0]) => {
     // Seleccionar banco basado únicamente en el nombre del ítem del registro
-    const nombre = registro.item.toLowerCase();
-    let maxScore = 0;
-    let elegido: BancoAlimentos | null = null;
-    const computeTopCandidates = (itemName: string, cantidad: number) => {
-      const name = itemName.toLowerCase();
-      const scores = bancosAlimentos.map((b) => {
-        let score = 0;
-        b.necesidades.forEach((k) => {
-          if (name.includes(k.toLowerCase())) score += cantidad;
-        });
-        return { banco: b, score };
-      });
-      const anyPositive = scores.some((s) => s.score > 0);
-      if (!anyPositive) {
-        return bancosAlimentos.slice().sort((a, b) => a.distanciaKm - b.distanciaKm || b.fiabilidadPct - a.fiabilidadPct).slice(0, 3);
-      }
-      return scores.sort((a, b) => b.score - a.score || a.banco.distanciaKm - b.banco.distanciaKm).map((s) => s.banco).slice(0, 3);
-    };
-
-    const candidates = computeTopCandidates(registro.item, registro.cantidad);
+    const candidates = getCandidateBancos(registro.item, registro.cantidad);
     // Single-item queue
     setPendingQueue([registro]);
     setPendingIndex(0);
     setRegistroSeleccionado(registro);
     setCandidateBancos(candidates);
-    setBancoSeleccionado(candidates[0] || null);
+    setBancoSeleccionado(null);
     setCantidadDonadaExito(0);
     setDonarOpen(true);
     setDonarSuccess(false);
@@ -154,27 +149,11 @@ export function ProduccionView() {
       if (nextIndex < pendingQueue.length) {
         const next = pendingQueue[nextIndex];
         // Seleccionar candidatos y banco para siguiente
-        const computeTopCandidates = (itemName: string, cantidad: number) => {
-          const name = itemName.toLowerCase();
-          const scores = bancosAlimentos.map((b) => {
-            let score = 0;
-            b.necesidades.forEach((k) => {
-              if (name.includes(k.toLowerCase())) score += cantidad;
-            });
-            return { banco: b, score };
-          });
-          const anyPositive = scores.some((s) => s.score > 0);
-          if (!anyPositive) {
-            return bancosAlimentos.slice().sort((a, b) => a.distanciaKm - b.distanciaKm || b.fiabilidadPct - a.fiabilidadPct).slice(0, 3);
-          }
-          return scores.sort((a, b) => b.score - a.score || a.banco.distanciaKm - b.banco.distanciaKm).map((s) => s.banco).slice(0, 3);
-        };
-
-        const candidates = computeTopCandidates(next.item, next.cantidad);
+        const candidates = getCandidateBancos(next.item, next.cantidad);
         setPendingIndex(nextIndex);
         setRegistroSeleccionado(next);
         setCandidateBancos(candidates);
-        setBancoSeleccionado(candidates[0] || null);
+        setBancoSeleccionado(null);
         // mantener dialogo abierto para siguiente confirmación
         return;
       }
@@ -195,10 +174,25 @@ export function ProduccionView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{t.produccionTitle}</h1>
-        <p className="text-sm text-muted-foreground">{t.produccionSub}</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      <div className="space-y-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">{t.produccionTitle}</h1>
+            <p className="text-sm text-muted-foreground">{t.produccionSub}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("¿Deseas reiniciar la sección de producción y borrar los registros de desperdicio actuales?")) {
+                limpiarRegistrosDesperdicio();
+              }
+            }}
+            className="inline-flex items-center justify-center rounded-lg border border-muted px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+          >
+            Reiniciar producción
+          </button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
           {produccionSteps.map((step) => (
             <div key={step.number} className="rounded-2xl border border-muted/80 bg-card p-4 text-sm shadow-sm">
               <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
@@ -429,6 +423,9 @@ export function ProduccionView() {
                         </div>
                       )}
                     </div>
+                    {!bancoSeleccionado ? (
+                      <p className="text-xs text-warning-foreground mt-2">Selecciona un banco para liberar el botón de confirmación.</p>
+                    ) : null}
                   </div>
 
                   <div className="bg-primary/5 rounded-lg p-3 text-xs text-primary leading-relaxed border border-primary/10">
@@ -445,7 +442,8 @@ export function ProduccionView() {
                 </button>
                 <button
                   onClick={confirmarDonacion}
-                  className="rounded-lg bg-primary px-5 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/95 transition-all flex items-center gap-1 shadow-md"
+                  disabled={!bancoSeleccionado}
+                  className={`rounded-lg px-5 py-2 text-sm font-bold text-primary-foreground transition-all flex items-center gap-1 shadow-md ${bancoSeleccionado ? "bg-primary hover:bg-primary/95" : "bg-muted text-muted-foreground cursor-not-allowed"}`}
                 >
                   <Heart size={14} className="fill-current" />
                   Confirmar Donación
